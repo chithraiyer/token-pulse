@@ -8,6 +8,16 @@
 
 **Input**: User description: "TokenPulse — Claude Code Cost & Usage Monitor (v1 Spec). A lightweight tool that lets an engineering manager see per-person Claude Code token/cost trends, automatically flags usage spikes, and produces plain-English rule-based optimization recommendations. Two data source modes: Live (Anthropic Usage & Cost Admin API) and Demo (synthetic dataset generator that runs with zero API keys). v1 also ships a written v2 roadmap but does not build it."
 
+## Clarifications
+
+### Session 2026-09-07
+
+- Q: In live mode, how does TokenPulse attribute usage to an individual team member given the Admin API buckets by API key / workspace? → A: Operator maintains a config mapping (API key / workspace → team member); ingestion joins live records to a member via that map, and unmapped keys surface as "unattributed".
+- Q: Should recommendation-rule numeric thresholds be fixed in the spec now or deferred to the rule catalog? → A: Spec fixes a default value per rule; those defaults live in the versioned, operator-tunable rule catalog, and changing one bumps the catalog version.
+- Q: Does v1 need encryption at rest for member-attributed data? → A: Yes whenever real member-attributed data is stored (live mode); demo mode, which holds only synthetic data, may store plaintext.
+- Q: How is spike severity classified? → A: Four bands (Low/Moderate/High/Critical) by the actual-to-baseline ratio relative to the configured threshold T, with absolute-dollar excess floors that demote a band when the day's excess is small.
+- Q: How many days of history should the demo dataset generate by default? → A: 90 days (matches the default retention window; ~12 weeks of trend, room for 2–3 separated spikes, covers every rolling-window rule).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Zero-setup demo mode (Priority: P1)
@@ -16,11 +26,11 @@ An evaluator (hiring manager, teammate, or the author showing a portfolio piece)
 
 **Why this priority**: The portfolio demonstration runs entirely on this dataset. Without it, nobody without privileged Anthropic credentials can see the product work at all, so it is the foundation every other story is shown on.
 
-**Independent Test**: From a fresh clone with no environment secrets set, follow the README quickstart. Confirm the application starts in demo mode and the dashboard shows 5–8 team members with multiple weeks of daily usage history and visible spike periods.
+**Independent Test**: From a fresh clone with no environment secrets set, follow the README quickstart. Confirm the application starts in demo mode and the dashboard shows 5–8 team members with 90 days of daily usage history and visible spike periods.
 
 **Acceptance Scenarios**:
 
-1. **Given** a fresh clone with no API keys configured, **When** the operator runs the quickstart, **Then** the application starts in demo mode and loads a synthetic dataset of 5–8 team members.
+1. **Given** a fresh clone with no API keys configured, **When** the operator runs the quickstart, **Then** the application starts in demo mode and loads a synthetic dataset of 5–8 team members with 90 days of daily history.
 2. **Given** demo mode is active, **When** the operator views any screen, **Then** a clear "synthetic demo data" indicator is visible.
 3. **Given** the default demo seed, **When** the dataset is generated twice, **Then** the two datasets are byte-identical.
 4. **Given** the generated demo dataset, **When** the operator inspects it, **Then** it contains 2–3 deliberately injected spike periods (e.g. one member running a premium model in a loop for a week) with otherwise natural day-to-day variance.
@@ -92,11 +102,12 @@ The manager supplies an Admin API key, switches the tool to live mode, and it pu
 
 **Acceptance Scenarios**:
 
-1. **Given** a valid Admin API key and live mode enabled, **When** ingestion runs for a date range, **Then** daily usage records per workspace / API key and model are stored.
+1. **Given** a valid Admin API key and live mode enabled, **When** ingestion runs for a date range, **Then** daily usage records per workspace / API key and model are stored and joined to a team member via the operator-maintained attribution mapping.
 2. **Given** live ingestion has run, **When** the dashboard is opened, **Then** live data populates the same trend, spike, and recommendation views as demo data.
 3. **Given** ingestion is re-run for an already-ingested date range, **When** it completes, **Then** no duplicate records are created.
 4. **Given** the API returns an incomplete result for part of the requested range, **When** ingestion completes, **Then** the missing days are reported as gaps and are not fabricated.
 5. **Given** a model in the usage data is absent from the pricing table, **When** cost is computed, **Then** that cost is marked as an unpriced estimate and surfaced rather than hidden.
+6. **Given** usage from an API key / workspace that is not in the attribution mapping, **When** ingestion runs, **Then** that usage is stored and shown under an "unattributed" pseudo-member, not discarded.
 
 ---
 
@@ -111,7 +122,8 @@ The manager supplies an Admin API key, switches the tool to live mode, and it pu
 - **Unknown model**: A model present in usage data but absent from the active pricing table yields a cost explicitly labeled "unpriced estimate", surfaced in the UI.
 - **Day boundary**: All daily bucketing uses UTC calendar days regardless of viewer locale.
 - **Retention boundary**: Records that reach exactly the configured retention age are deleted on the next retention pass.
-- **Extreme single-day usage**: A day that dwarfs the baseline (e.g. 50×) is still classified into the highest severity band without error.
+- **Extreme single-day usage**: A day that dwarfs the baseline (e.g. 50×) is classified Critical when its absolute excess also clears the Critical dollar floor, and otherwise into the highest band its dollar excess supports — computed without error.
+- **Tiny-dollar spike**: A day that is many times the baseline but whose baseline (and therefore excess) is a few cents stays at Low/Moderate because the High/Critical dollar floors are not met.
 - **Demo reproducibility**: Regenerating the demo dataset with the same seed produces an identical dataset; changing the seed produces a different but structurally similar dataset.
 
 ## Requirements *(mandatory)*
@@ -122,12 +134,14 @@ The manager supplies an Admin API key, switches the tool to live mode, and it pu
 
 - **FR-001**: System MUST ingest daily token usage aggregated per team member and per model, capturing input tokens, output tokens, and cached tokens for each member/model/day.
 - **FR-002**: System MUST support two selectable ingestion modes — **Live** (Anthropic Usage & Cost Admin API, day-bucketed, broken out by workspace / API key and model) and **Demo** (synthetic dataset generator) — chosen via a single configuration value.
-- **FR-003**: Demo mode MUST operate with zero API keys or external credentials and MUST generate 5–8 synthetic team members with realistic daily usage variance and 2–3 deliberately injected spike scenarios.
+- **FR-003**: Demo mode MUST operate with zero API keys or external credentials and MUST generate 5–8 synthetic team members with 90 days (configurable) of daily usage history exhibiting realistic day-to-day variance, 2–3 deliberately injected and well-separated spike scenarios, and at least one team-level model-mix shift spanning two consecutive 7-day windows.
 - **FR-004**: System MUST clearly indicate in both the user interface and the README when it is running on synthetic demo data.
 - **FR-005**: Live mode MUST authenticate using an Admin API key sourced from environment variables or a secrets manager; the key MUST NOT be committed to the repository or written to logs.
 - **FR-006**: System MUST NOT silently backfill missing days with estimated values; an incomplete source window MUST be reported as incomplete in any affected report or view.
 - **FR-007**: Ingestion MUST be idempotent — re-running ingestion for a date range already ingested MUST NOT create duplicate usage records.
 - **FR-008**: The data model and ingestion layer MUST be provider-agnostic so that additional providers (e.g. OpenAI, Gemini) can be added in a later version without changing the stored schema. Only Anthropic is wired up in v1.
+- **FR-008a**: Live mode MUST attribute usage to a team member via an operator-maintained mapping of source identity (API key and/or workspace) → team member. Ingestion MUST join each live usage record to a member through this mapping.
+- **FR-008b**: Usage from a source identity not present in the mapping MUST be retained and surfaced as "unattributed" (its own pseudo-member) rather than dropped or silently merged into another member.
 
 #### Cost & pricing
 
@@ -149,6 +163,7 @@ The manager supplies an Admin API key, switches the tool to live mode, and it pu
 - **FR-018**: System MUST compute each member's baseline as the rolling 7-day average of their daily cost.
 - **FR-019**: System MUST flag any day where a member's actual daily cost exceeds their baseline by a configurable multiple, defaulting to 2.5×.
 - **FR-020**: Each spike flag MUST record the baseline average, the actual value, the deviation, and a severity classification.
+- **FR-020a**: Severity MUST be one of Low / Moderate / High / Critical, derived deterministically. Let `T` be the configured spike multiple (default 2.5×), `r` the actual-to-baseline ratio, and `E` the actual-minus-baseline cost in USD. The ratio band is: Low = `T ≤ r < 2T`, Moderate = `2T ≤ r < 3T`, High = `3T ≤ r < 5T`, Critical = `r ≥ 5T`. A dollar floor then applies: Critical requires `E ≥ $200` and High requires `E ≥ $50`; if the floor is unmet, the band drops one level and the check repeats until the floor is satisfied or Low is reached. Both the ratio band and the dollar floors MUST be operator-tunable parameters in the rule catalog (per FR-029a).
 - **FR-021**: System MUST NOT flag spikes for a member with fewer than 7 days of prior history in the analysed window; such members MUST be shown as "insufficient history".
 - **FR-022**: Spike detection MUST be deterministic — identical input data and configuration produce an identical set of flags regardless of processing order or wall-clock time.
 - **FR-023**: The spike multiple MUST be operator-configurable without code changes.
@@ -160,11 +175,12 @@ The manager supplies an Admin API key, switches the tool to live mode, and it pu
 - **FR-026**: Each recommendation MUST state the rule that fired, the observed data that triggered it, the concrete suggested change, and — where a dollar figure is claimed — the estimated USD saving together with its calculation and assumptions.
 - **FR-027**: Estimated savings MUST be conservative and MUST document their assumptions; a rule that cannot bound its estimate MUST NOT state a dollar figure.
 - **FR-028**: Recommendations MUST be reproducible — the same input dataset and rule-catalog version yield identical recommendations and projected savings.
-- **FR-029**: v1 MUST implement at least these rules, all using metadata-only signals (no prompt or completion content is inspected or stored):
-  - **(a)** Sustained high premium-model (Opus) usage on lightweight requests (small per-request token sizes) → suggest moving that workload class to Sonnet or Haiku.
-  - **(b)** Sustained high uncached input-token volume with a low cache-hit ratio → estimate the saving from enabling prompt caching.
-  - **(c)** High-volume, non-urgent usage pattern → suggest the Batch API, citing the standard 50% discount.
-  - **(d)** Sudden model-mix shift for a team → flag for human review with no dollar figure.
+- **FR-029**: v1 MUST implement at least these rules, all using metadata-only signals (no prompt or completion content is inspected or stored). Each rule's trigger uses a trailing 7-day window per subject and the stated default threshold:
+  - **(a)** **High premium-model use on lightweight work** — Opus is ≥ 60% of the member's trailing-7-day cost AND the member's mean Opus output:input token ratio is ≤ 0.2 → suggest moving that workload class to Sonnet or Haiku. Saving = trailing-window Opus cost minus the same token volume repriced at Sonnet rates.
+  - **(b)** **Low cache utilisation** — cache-read tokens are < 10% of total input tokens over the trailing 7 days AND trailing-7-day input tokens ≥ 1,000,000 → estimate the saving from enabling prompt caching.
+  - **(c)** **Steady high-volume workload** — trailing-7-day mean daily tokens ≥ 5,000,000 with day-to-day coefficient of variation ≤ 0.3 (i.e. steady, batch-like, not bursty) → suggest the Batch API, citing the standard 50% discount.
+  - **(d)** **Model-mix shift** — a team's Opus share of cost rises by ≥ 25 percentage points from the prior 7-day window to the current one → flag for human review with no dollar figure.
+- **FR-029a**: The default thresholds in FR-029 (and the spike multiple in FR-019) MUST be stored as versioned, operator-tunable parameters in the rule catalog. Changing any threshold MUST bump the rule-catalog version, and every recommendation MUST report the threshold value that was in effect.
 
 #### Roadmap (documented, not built in v1)
 
@@ -174,6 +190,7 @@ The manager supplies an Admin API key, switches the tool to live mode, and it pu
 
 - **FR-031**: System MUST NOT store prompt content, completion content, code, or file contents. Only usage metadata is retained: member identifier, team identifier, date/timestamp, model, request/interaction type, input tokens, output tokens, cache-read tokens, cache-write tokens, computed cost, and pricing-table version.
 - **FR-032**: Per-member usage metadata MUST have an operator-configurable retention period with a documented default of 90 days; data older than the retention period MUST be deleted, not merely hidden.
+- **FR-032a**: When running in live mode (real member-attributed data), the persistence store MUST be encrypted at rest. Demo mode, which stores only synthetic data, MAY run without encryption so the zero-setup quickstart has no key step.
 - **FR-033**: Reporting MUST default to team-level aggregation, with per-member breakdowns available to the operator.
 - **FR-034**: Given identical input data and pinned configuration (pricing-table version and rule-catalog version), the system MUST produce identical reports, spike flags, and recommendations.
 - **FR-035**: Each generated report MUST record the pricing-table version, rule-catalog version, source-data window, and tool version used to produce it.
@@ -185,10 +202,11 @@ The manager supplies an Admin API key, switches the tool to live mode, and it pu
 
 ### Key Entities *(include if feature involves data)*
 
-- **User (team member)**: A monitored engineer. Attributes: identifier, display name, team identifier.
-- **UsageRecord**: One member's usage of one model on one day. Attributes: member reference, date (UTC day), model, input tokens, output tokens, cached tokens (read / write), computed cost (USD), data source (live | demo), pricing-table version. Provider-agnostic in shape.
+- **User (team member)**: A monitored engineer. Attributes: identifier, display name, team identifier. A reserved "unattributed" pseudo-member holds live usage whose source identity is not mapped.
+- **AttributionMap**: An operator-maintained set of entries mapping a source identity (API key and/or workspace) to a team member. Used only in live mode. Attributes: source identity, member reference.
+- **UsageRecord**: One member's usage of one model on one day. Attributes: member reference, source identity (API key / workspace, live mode only), date (UTC day), model, input tokens, output tokens, cached tokens (read / write), computed cost (USD), data source (live | demo), pricing-table version. Provider-agnostic in shape.
 - **PricingTable**: A versioned, dated set of per-model rates (input, output, cache-read, cache-write) used to compute cost for a period. Attributes: version identifier, effective date range, per-model rates.
-- **Spike**: An abnormal member-day. Attributes: member reference, date, baseline average, actual value, deviation, severity classification, spike-multiple configuration used.
+- **Spike**: An abnormal member-day. Attributes: member reference, date, baseline average, actual value, deviation, severity classification (Low / Moderate / High / Critical), and the spike-multiple and dollar-floor parameters in effect.
 - **Recommendation**: A rule-based optimization suggestion. Attributes: subject (member or team) reference, rule identifier, rule-catalog version, summary of triggering data, plain-English message, estimated USD saving (nullable), assumptions/calculation note.
 - **RuleCatalog**: The versioned collection of recommendation rules. Attributes: catalog version, and per rule: stable identifier, description, triggering condition, savings-calculation method.
 - **ReportRun**: Metadata describing one generation of reports. Attributes: generation timestamp, source-data window, pricing-table version, rule-catalog version, tool version, data-source mode.
@@ -214,6 +232,7 @@ The manager supplies an Admin API key, switches the tool to live mode, and it pu
 - **SC-005**: Running report generation twice on the same input data and configuration produces identical totals, spike flags, and recommendations.
 - **SC-006**: Switching from demo mode to live mode requires only supplying an Admin API key and changing one configuration value — no code changes.
 - **SC-007**: No stored record contains prompt or completion text, verifiable by inspecting the data-store schema and its contents.
+- **SC-007a**: In live mode, the persistence store is encrypted at rest — verifiable by inspecting the store file without the key and finding no readable member identifiers or usage values.
 - **SC-008**: A reviewer can trace any single spike flag or recommendation shown in the interface back to the specific daily records that produced it, using the structured logs, in under 2 minutes.
 - **SC-009**: The README contains a problem statement, an architecture diagram, a "how I used AI to build this" section, and 2–3 dashboard screenshots or a GIF.
 - **SC-010**: The demo dataset generator produces an identical dataset on repeated runs with the same seed.
@@ -224,8 +243,9 @@ The manager supplies an Admin API key, switches the tool to live mode, and it pu
 - **"Spend"** for baseline and spike comparison means computed cost in USD, not raw token count.
 - **Daily buckets** use UTC calendar days.
 - **Cost source**: in live mode, cost derives from Anthropic's cost reporting; in demo mode, cost is computed from a versioned, dated pricing table bundled in the repository. Both are labeled with the pricing-table version.
-- **Metadata-only recommendation signals**: "lightweight request", "repeated identical system prompts", and similar concepts are approximated from metadata only (per-request token sizes, uncached-input volume, cache-hit ratio). No prompt content is inspected or stored.
+- **Metadata-only recommendation signals**: "lightweight request", "low cache utilisation", "steady high volume", and "model-mix shift" are approximated from metadata only — token ratios, uncached-input volume, cache-hit ratio, daily-volume variance, and model cost shares (see FR-029 for the default thresholds). No prompt content is inspected or stored.
 - **Demo seed**: the synthetic generator is deterministically seeded and ships with a fixed default seed so the portfolio demo is reproducible.
+- **Demo history length**: default 90 days of daily history (configurable), chosen to match the retention window and to give every rolling-window rule enough data.
 - **Baseline definition**: the rolling 7-day baseline uses the raw trailing 7 calendar days of the member's cost, including any prior flagged spike days. This is accepted for v1 explainability.
 - **Spike multiple**: default 2.5×, operator-configurable via configuration.
 - **Retention**: default 90 days for per-member daily metadata, operator-configurable.
@@ -238,5 +258,6 @@ The manager supplies an Admin API key, switches the tool to live mode, and it pu
 ### Dependencies
 
 - Live mode depends on access to the Anthropic Usage & Cost Admin API endpoint for message usage and a valid Admin API key with organization-level visibility.
+- Live mode assumes the operator can supply an accurate API key / workspace → team member mapping; accuracy of per-person live attribution is only as good as that mapping. A roughly one-key-per-engineer setup is assumed.
 - Requires a bundled, maintained pricing table covering the Anthropic models that appear in usage data.
 - Requires a local persistence store for usage metadata, spikes, recommendations, and run metadata.

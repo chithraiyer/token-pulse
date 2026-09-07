@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tokenpulse.local/schemas/rule-catalog.schema.json",
+  "title": "TokenPulse Rule Catalog",
+  "description": "Versioned, operator-tunable catalog holding the spike parameters and the recommendation rules. Any threshold change requires a version bump + CHANGELOG entry + tests (FR-029a).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "spike", "rules"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "e.g. 'v1'. Recorded on every SpikeFlag and Recommendation.",
+      "minLength": 1
+    },
+    "spike": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["multiple", "high_floor_usd", "critical_floor_usd", "severity_ratio_bands"],
+      "properties": {
+        "multiple": {
+          "$ref": "#/$defs/decimal",
+          "description": "T: flag a day when actual >= T * rolling-7d baseline. Default '2.5' (FR-019)."
+        },
+        "baseline_window_days": { "type": "integer", "const": 7 },
+        "high_floor_usd": {
+          "$ref": "#/$defs/decimal",
+          "description": "Excess (actual - baseline) must be >= this for severity 'high'. Default '50'."
+        },
+        "critical_floor_usd": {
+          "$ref": "#/$defs/decimal",
+          "description": "Excess must be >= this for severity 'critical'. Default '200'."
+        },
+        "severity_ratio_bands": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Upper bounds as multiples of T. r=actual/baseline. low:[T,2T) moderate:[2T,3T) high:[3T,5T) critical:>=5T (FR-020a).",
+          "required": ["moderate_at", "high_at", "critical_at"],
+          "properties": {
+            "moderate_at": { "$ref": "#/$defs/decimal", "description": "default '2' (times T)" },
+            "high_at": { "$ref": "#/$defs/decimal", "description": "default '3' (times T)" },
+            "critical_at": { "$ref": "#/$defs/decimal", "description": "default '5' (times T)" }
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "enabled", "window_days", "subject", "thresholds", "produces_savings"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": ["opus-on-lightweight", "low-cache-utilisation", "steady-high-volume", "model-mix-shift"],
+            "description": "Stable identifier (Principle II)."
+          },
+          "title": { "type": "string" },
+          "enabled": { "type": "boolean" },
+          "window_days": { "type": "integer", "enum": [7] },
+          "subject": { "type": "string", "enum": ["member", "team"] },
+          "produces_savings": {
+            "type": "boolean",
+            "description": "false for flag-only rules; estimated_savings_micros stays null (FR-027)."
+          },
+          "thresholds": {
+            "type": "object",
+            "description": "Rule-specific tunables. Keys per rule id, all decimal strings.",
+            "additionalProperties": { "$ref": "#/$defs/decimal" }
+          },
+          "savings_formula": {
+            "type": "string",
+            "description": "Human-readable formula recorded in Recommendation.savings_basis. Required when produces_savings is true."
+          },
+          "assumptions": {
+            "type": "string",
+            "description": "Conservative-estimate assumptions (FR-027). Required when produces_savings is true."
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "produces_savings": { "const": true } } },
+            "then": { "required": ["savings_formula", "assumptions"] }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "decimal": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "description": "Decimal string; parsed with Decimal, never float."
+    }
+  }
+}

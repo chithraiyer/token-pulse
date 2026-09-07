@@ -1,0 +1,318 @@
+openapi: 3.1.0
+info:
+  title: TokenPulse Backend API
+  version: 1.0.0
+  description: >
+    Read API consumed by the TokenPulse React dashboard, plus an ingest trigger.
+    Single-operator, no auth in v1 (see spec Assumptions / plan Complexity Tracking).
+    All money values are integer micro-USD (1 = 1e-6 USD). All dates are UTC (YYYY-MM-DD).
+servers:
+  - url: http://localhost:8000
+
+paths:
+  /api/meta:
+    get:
+      summary: App + config metadata (drives the demo banner and version footer)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meta" }
+
+  /api/teams:
+    get:
+      summary: List teams and members
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Team" }
+
+  /api/trends:
+    get:
+      summary: Time-series trends for a scope over a date range
+      parameters:
+        - { name: scope, in: query, required: true,
+            schema: { type: string, enum: [team, member] } }
+        - { name: scope_id, in: query, required: false, schema: { type: string },
+            description: "team id or member id; omit with scope=team for all-teams total" }
+        - { name: metric, in: query, required: true,
+            schema: { type: string, enum: [cost, tokens] } }
+        - { name: start, in: query, required: true, schema: { type: string, format: date } }
+        - { name: end, in: query, required: true, schema: { type: string, format: date } }
+        - { name: by_model, in: query, required: false, schema: { type: boolean, default: false } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrendResponse" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/totals:
+    get:
+      summary: Period totals + period-over-period change for team and each member
+      parameters:
+        - { name: start, in: query, required: true, schema: { type: string, format: date } }
+        - { name: end, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: OK. `team.cost_micros` equals the sum of `members[].cost_micros` (FR-017).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TotalsResponse" }
+
+  /api/spikes:
+    get:
+      summary: Spike flags for the latest report run within a range
+      parameters:
+        - { name: start, in: query, required: true, schema: { type: string, format: date } }
+        - { name: end, in: query, required: true, schema: { type: string, format: date } }
+        - { name: member_id, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SpikesResponse" }
+
+  /api/recommendations:
+    get:
+      summary: Recommendations for the latest report run
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Recommendation" }
+
+  /api/report-runs/latest:
+    get:
+      summary: Latest report run metadata (versions, window, reconciliation)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReportRun" }
+        "404": { description: No report run yet (fresh install before first ingest+report) }
+
+  /api/ingest:
+    post:
+      summary: Trigger an ingestion + report build (demo seed or live pull)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IngestRequest" }
+      responses:
+        "202":
+          description: Accepted; returns the ingestion run summary when finished
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IngestionRun" }
+        "409": { description: Live mode requested but TOKENPULSE_DB_KEY / admin key missing }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+components:
+  responses:
+    ValidationError:
+      description: Invalid query/body parameters
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Meta:
+      type: object
+      required: [mode, tool_version, is_demo_data, pricing_table_versions, rule_catalog_version, retention_days]
+      properties:
+        mode: { type: string, enum: [demo, live] }
+        is_demo_data: { type: boolean, description: "true ⇒ frontend shows the synthetic-data banner (FR-004)" }
+        tool_version: { type: string }
+        pricing_table_versions: { type: array, items: { type: string } }
+        rule_catalog_version: { type: string }
+        retention_days: { type: integer }
+        spike_multiple: { type: string, description: "decimal string, T in effect" }
+
+    Team:
+      type: object
+      required: [id, name, members]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        members:
+          type: array
+          items:
+            type: object
+            required: [id, display_name, is_unattributed]
+            properties:
+              id: { type: string }
+              display_name: { type: string }
+              is_unattributed: { type: boolean }
+
+    TrendResponse:
+      type: object
+      required: [scope, metric, start, end, series, empty_reason]
+      properties:
+        scope: { type: string }
+        metric: { type: string }
+        start: { type: string, format: date }
+        end: { type: string, format: date }
+        empty_reason:
+          type: [string, "null"]
+          enum: [null, no_data_in_range, insufficient_history]
+        series:
+          type: array
+          items:
+            type: object
+            required: [key, points]
+            properties:
+              key: { type: string, description: "'total' or a model id when by_model=true" }
+              points:
+                type: array
+                items:
+                  type: object
+                  required: [date, value, is_spike, missing]
+                  properties:
+                    date: { type: string, format: date }
+                    value: { type: integer, description: "micro-USD or token count" }
+                    is_spike: { type: boolean, description: "day carries a SpikeFlag (FR-015)" }
+                    missing: { type: boolean, description: "no record for this day — gap, not zero (FR-006)" }
+
+    TotalsResponse:
+      type: object
+      required: [start, end, team, members]
+      properties:
+        start: { type: string, format: date }
+        end: { type: string, format: date }
+        team: { $ref: "#/components/schemas/ScopeTotals" }
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/ScopeTotals" }
+
+    ScopeTotals:
+      type: object
+      required: [scope_id, cost_micros, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, prev_period_delta_pct]
+      properties:
+        scope_id: { type: string }
+        cost_micros: { type: integer }
+        input_tokens: { type: integer }
+        output_tokens: { type: integer }
+        cache_read_tokens: { type: integer }
+        cache_write_tokens: { type: integer }
+        prev_period_delta_pct: { type: [number, "null"], description: "null when no prior period data" }
+
+    SpikesResponse:
+      type: object
+      required: [report_run_id, flags, insufficient_history]
+      properties:
+        report_run_id: { type: integer }
+        insufficient_history:
+          type: array
+          items: { type: string }
+          description: member ids with < 7 prior days in range (FR-021)
+        flags:
+          type: array
+          items: { $ref: "#/components/schemas/SpikeFlag" }
+
+    SpikeFlag:
+      type: object
+      required: [member_id, date, baseline_avg_micros, actual_micros, deviation_ratio, excess_micros, severity, spike_multiple, rule_catalog_version]
+      properties:
+        member_id: { type: string }
+        date: { type: string, format: date }
+        baseline_avg_micros: { type: integer }
+        actual_micros: { type: integer }
+        deviation_ratio: { type: string, description: "exact decimal string" }
+        excess_micros: { type: integer }
+        severity: { type: string, enum: [low, moderate, high, critical] }
+        spike_multiple: { type: string }
+        rule_catalog_version: { type: string }
+
+    Recommendation:
+      type: object
+      required: [rule_id, rule_catalog_version, subject_kind, subject_id, window_start, window_end, message, trigger_data, threshold_data, estimated_savings_micros]
+      properties:
+        rule_id: { type: string }
+        rule_catalog_version: { type: string }
+        subject_kind: { type: string, enum: [member, team] }
+        subject_id: { type: string }
+        window_start: { type: string, format: date }
+        window_end: { type: string, format: date }
+        message: { type: string }
+        trigger_data: { type: object, additionalProperties: true }
+        threshold_data: { type: object, additionalProperties: true }
+        estimated_savings_micros: { type: [integer, "null"], description: "null for flag-only rules (FR-027)" }
+        savings_basis:
+          type: [object, "null"]
+          description: formula + assumptions when a figure is given (FR-011)
+          additionalProperties: true
+
+    ReportRun:
+      type: object
+      required: [id, source_window_start, source_window_end, mode, pricing_table_versions, rule_catalog_version, tool_version]
+      properties:
+        id: { type: integer }
+        generated_at: { type: string, format: date-time }
+        source_window_start: { type: string, format: date }
+        source_window_end: { type: string, format: date }
+        mode: { type: string, enum: [demo, live] }
+        pricing_table_versions: { type: array, items: { type: string } }
+        rule_catalog_version: { type: string }
+        tool_version: { type: string }
+        reconciliation:
+          type: [array, "null"]
+          items:
+            type: object
+            required: [period, workspace, computed_micros, reported_micros, delta_micros, within_tolerance]
+            properties:
+              period: { type: string }
+              workspace: { type: string }
+              computed_micros: { type: integer }
+              reported_micros: { type: integer }
+              delta_micros: { type: integer }
+              within_tolerance: { type: boolean }
+
+    IngestRequest:
+      type: object
+      required: [mode]
+      properties:
+        mode: { type: string, enum: [demo, live] }
+        start: { type: string, format: date, description: "required for live; ignored for demo" }
+        end: { type: string, format: date }
+        demo_seed: { type: integer, description: "override the default fixed seed (demo only)" }
+        demo_days: { type: integer, default: 90 }
+
+    IngestionRun:
+      type: object
+      required: [id, mode, requested_start, requested_end, covered_start, covered_end, gap_days, status]
+      properties:
+        id: { type: integer }
+        mode: { type: string, enum: [demo, live] }
+        requested_start: { type: string, format: date }
+        requested_end: { type: string, format: date }
+        covered_start: { type: string, format: date }
+        covered_end: { type: string, format: date }
+        status: { type: string, enum: [complete, partial, failed] }
+        gap_days:
+          type: array
+          items:
+            type: object
+            required: [start, end]
+            properties:
+              start: { type: string, format: date }
+              end: { type: string, format: date }
+              group: { type: string }
+
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail: { type: string }
