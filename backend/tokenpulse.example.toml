@@ -1,0 +1,23 @@
+# TokenPulse configuration. Copy to tokenpulse.toml and edit.
+# Relative paths resolve against this file's directory. Secrets come from the
+# environment only (TOKENPULSE_ADMIN_API_KEY, TOKENPULSE_DB_KEY) — never put them here.
+
+mode = "demo"                     # "demo" (synthetic data, no keys) or "live" (US5)
+database_path = "tokenpulse.db"
+db_key_env = "TOKENPULSE_DB_KEY"  # env var holding the SQLCipher passphrase (live mode)
+retention_days = 90               # per-member metadata retention; older rows are deleted
+
+[pricing]
+dir = "config/pricing"
+schema_dir = "config/schemas"
+
+[rules]
+catalog = "config/rules/catalog-v1.yaml"
+
+[spike]
+multiple = ""                     # optional override of the catalog's spike multiple
+
+[demo]
+seed = 20260907
+days = 90
+members = 6

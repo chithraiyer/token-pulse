@@ -1,0 +1,62 @@
+# TokenPulse rule catalog v1.
+# Versioned, operator-tunable. Any threshold change here requires a version bump
+# (new catalog-v<n>.yaml), a CHANGELOG entry, and updated tests (FR-029a).
+version: v1
+
+spike:
+  multiple: "2.5"                # T: flag a day when actual >= T * rolling-7d baseline (FR-019)
+  baseline_window_days: 7
+  high_floor_usd: "50"          # excess (actual - baseline) must be >= this for severity "high"
+  critical_floor_usd: "200"     # ... and >= this for "critical" (FR-020a)
+  severity_ratio_bands:
+    moderate_at: "2"            # r >= 2T  -> at least moderate   (r = actual / baseline)
+    high_at: "3"               # r >= 3T  -> at least high
+    critical_at: "5"          # r >= 5T  -> at least critical
+
+rules:
+  - id: opus-on-lightweight
+    title: High premium-model use on lightweight work
+    enabled: true
+    window_days: 7
+    subject: member
+    produces_savings: true
+    thresholds:
+      opus_cost_share_min: "0.60"
+      opus_out_in_ratio_max: "0.20"
+    savings_formula: "trailing-window Opus cost minus the same token volume repriced at Sonnet rates"
+    assumptions: "Assumes the lightweight Opus workload would run acceptably on Sonnet at Sonnet list rates; no quality regression modelled."
+
+  - id: low-cache-utilisation
+    title: Low cache utilisation on high input volume
+    enabled: true
+    window_days: 7
+    subject: member
+    produces_savings: true
+    thresholds:
+      cache_hit_ratio_max: "0.10"
+      input_tokens_min: "1000000"
+      cacheable_fraction: "0.50"
+    savings_formula: "cacheable_fraction of input tokens repriced from input rate to cache-read rate over the trailing window"
+    assumptions: "Conservatively assumes only half of input tokens are cache-eligible and that cache writes are amortised to zero over the window."
+
+  - id: steady-high-volume
+    title: Steady high-volume workload suited to the Batch API
+    enabled: true
+    window_days: 7
+    subject: member
+    produces_savings: true
+    thresholds:
+      mean_daily_tokens_min: "5000000"
+      daily_cv_max: "0.30"
+      batch_multiplier: "0.5"
+    savings_formula: "(1 - batch_multiplier) * trailing-window cost for the steady (batchable) share"
+    assumptions: "Assumes the steady share of the workload is not latency-sensitive and qualifies for the standard 50% batch discount."
+
+  - id: model-mix-shift
+    title: Sudden team model-mix shift
+    enabled: true
+    window_days: 7
+    subject: team
+    produces_savings: false
+    thresholds:
+      opus_cost_share_increase_pp_min: "0.25"

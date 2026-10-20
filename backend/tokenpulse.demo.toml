@@ -1,0 +1,19 @@
+# Committed demo configuration used by scripts/demo.sh and scripts/demo.ps1.
+# Zero API keys. Run commands from the backend/ directory.
+
+mode = "demo"
+database_path = "tokenpulse.db"
+db_key_env = "TOKENPULSE_DB_KEY"
+retention_days = 90
+
+[pricing]
+dir = "config/pricing"
+schema_dir = "config/schemas"
+
+[rules]
+catalog = "config/rules/catalog-v1.yaml"
+
+[demo]
+seed = 20260907
+days = 90
+members = 6

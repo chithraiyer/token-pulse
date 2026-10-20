@@ -1,0 +1,30 @@
+{
+  "version": "anthropic-2026-09-01",
+  "effective_start": "2026-01-01",
+  "effective_end": "2099-12-31",
+  "currency": "USD",
+  "source": "Illustrative rates bundled for the TokenPulse demo. Replace with an authoritative, dated rate card before using live mode. USD per 1,000,000 tokens.",
+  "models": {
+    "claude-opus-4": {
+      "input_per_mtok": "15.00",
+      "output_per_mtok": "75.00",
+      "cache_write_per_mtok": "18.75",
+      "cache_read_per_mtok": "1.50",
+      "batch_multiplier": "0.5"
+    },
+    "claude-sonnet-4": {
+      "input_per_mtok": "3.00",
+      "output_per_mtok": "15.00",
+      "cache_write_per_mtok": "3.75",
+      "cache_read_per_mtok": "0.30",
+      "batch_multiplier": "0.5"
+    },
+    "claude-haiku-4": {
+      "input_per_mtok": "0.80",
+      "output_per_mtok": "4.00",
+      "cache_write_per_mtok": "1.00",
+      "cache_read_per_mtok": "0.08",
+      "batch_multiplier": "0.5"
+    }
+  }
+}

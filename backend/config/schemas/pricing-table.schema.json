@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tokenpulse.local/schemas/pricing-table.schema.json",
+  "title": "TokenPulse Pricing Table",
+  "description": "A versioned, dated per-model rate card. One file per effective period. Rates are decimal strings in USD per million tokens.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "effective_start", "effective_end", "currency", "models"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Stable identifier, e.g. 'anthropic-2026-09-01'. Referenced by UsageRecord.pricing_table_version and ReportRun.",
+      "minLength": 1
+    },
+    "effective_start": {
+      "type": "string",
+      "format": "date",
+      "description": "First UTC day this table applies to (inclusive)."
+    },
+    "effective_end": {
+      "type": "string",
+      "format": "date",
+      "description": "Last UTC day this table applies to (inclusive). Use a far-future date for the current table."
+    },
+    "currency": { "type": "string", "const": "USD" },
+    "source": {
+      "type": "string",
+      "description": "Where these rates came from (URL or note). Advisory."
+    },
+    "models": {
+      "type": "object",
+      "description": "Keyed by provider model id.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input_per_mtok",
+          "output_per_mtok",
+          "cache_write_per_mtok",
+          "cache_read_per_mtok"
+        ],
+        "properties": {
+          "input_per_mtok": { "$ref": "#/$defs/rate" },
+          "output_per_mtok": { "$ref": "#/$defs/rate" },
+          "cache_write_per_mtok": { "$ref": "#/$defs/rate" },
+          "cache_read_per_mtok": { "$ref": "#/$defs/rate" },
+          "batch_multiplier": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "description": "Optional. Fraction of standard price under the Batch API (default '0.5').",
+            "default": "0.5"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "rate": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "description": "Decimal string, USD per 1,000,000 tokens. Parsed with Decimal, never float."
+    }
+  }
+}

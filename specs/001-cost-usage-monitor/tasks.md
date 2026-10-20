@@ -34,16 +34,16 @@ Web app per plan.md: `backend/src/tokenpulse/`, `backend/tests/`, `backend/confi
 
 **Purpose**: Repo scaffold and toolchain
 
-- [ ] T001 Create monorepo structure (`backend/`, `frontend/`, `docs/`, `scripts/`) per plan.md
-- [ ] T002 [P] Initialize backend Python 3.12 project with `uv` in `backend/pyproject.toml` (fastapi, uvicorn, pydantic, sqlalchemy, alembic, httpx, typer, structlog, python-dotenv, pyyaml)
-- [ ] T003 [P] Add backend dev/test deps in `backend/pyproject.toml` (pytest, pytest-cov, respx, ruff, mypy, jsonschema)
-- [ ] T004 [P] Scaffold frontend with Vite React-TS in `frontend/package.json` (react, react-dom, recharts, @tanstack/react-query, react-router-dom)
-- [ ] T005 [P] Add frontend dev/test deps in `frontend/package.json` (vitest, @testing-library/react, @testing-library/jest-dom, eslint, prettier, typescript)
-- [ ] T006 [P] Configure backend lint/type in `backend/ruff.toml` and `backend/mypy.ini` (strict on `tokenpulse/core`)
-- [ ] T007 [P] Configure frontend lint/format in `frontend/.eslintrc.cjs`, `frontend/.prettierrc`, `frontend/tsconfig.json` (strict)
-- [ ] T008 [P] Add CI workflow `.github/workflows/ci.yml` (backend: ruff + mypy + pytest w/ coverage gate on `tokenpulse/core`; frontend: eslint + tsc + vitest)
-- [ ] T009 [P] Add `Makefile` and `scripts/demo.sh` + `scripts/demo.ps1` stubs at repo root
-- [ ] T010 [P] Add `.gitignore`, `.editorconfig`, `.gitattributes` (LF normalization) at repo root
+- [x] T001 Create monorepo structure (`backend/`, `frontend/`, `docs/`, `scripts/`) per plan.md
+- [x] T002 [P] Initialize backend Python 3.12 project with `uv` in `backend/pyproject.toml` (fastapi, uvicorn, pydantic, sqlalchemy, alembic, httpx, typer, structlog, python-dotenv, pyyaml)
+- [x] T003 [P] Add backend dev/test deps in `backend/pyproject.toml` (pytest, pytest-cov, respx, ruff, mypy, jsonschema)
+- [x] T004 [P] Scaffold frontend with Vite React-TS in `frontend/package.json` (react, react-dom, recharts, @tanstack/react-query, react-router-dom)
+- [x] T005 [P] Add frontend dev/test deps in `frontend/package.json` (vitest, @testing-library/react, @testing-library/jest-dom, eslint, prettier, typescript)
+- [x] T006 [P] Configure backend lint/type in `backend/ruff.toml` and `backend/mypy.ini` (strict on `tokenpulse/core`)
+- [x] T007 [P] Configure frontend lint/format in `frontend/.eslintrc.cjs`, `frontend/.prettierrc`, `frontend/tsconfig.json` (strict)
+- [x] T008 [P] Add CI workflow `.github/workflows/ci.yml` (backend: ruff + mypy + pytest w/ coverage gate on `tokenpulse/core`; frontend: eslint + tsc + vitest)
+- [x] T009 [P] Add `Makefile` and `scripts/demo.sh` + `scripts/demo.ps1` stubs at repo root
+- [x] T010 [P] Add `.gitignore`, `.editorconfig`, `.gitattributes` (LF normalization) at repo root
 
 ---
 
@@ -54,31 +54,31 @@ Web app per plan.md: `backend/src/tokenpulse/`, `backend/tests/`, `backend/confi
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
 - [x] T011 [P] Write ADR `docs/adr/0001-source-identity-field.md` documenting both plan.md Complexity Tracking deviations (the `source_identity` stored field and the no-auth/RBAC deferral), each referencing Principle IV — **done**
-- [ ] T012 [P] Unit tests (test-first) for micro-USD money type in `backend/tests/unit/core/test_money.py`
-- [ ] T013 Implement `backend/src/tokenpulse/core/money.py` (integer micro-USD, `ROUND_HALF_UP` quantize, parse/format, Decimal helpers) — make T012 pass
-- [ ] T014 [P] Copy contract schemas into the package: `backend/config/schemas/pricing-table.schema.json` and `backend/config/schemas/rule-catalog.schema.json` (from `specs/001-cost-usage-monitor/contracts/`)
-- [ ] T015 [P] Unit tests (test-first) for pricing loader + `cost()` in `backend/tests/unit/core/test_pricing.py` (date selection, unknown model → estimate, normal/boundary/empty)
-- [ ] T016 Implement `backend/src/tokenpulse/core/pricing.py` (load dated tables, select by record date, `cost(tokens, model, version)`, unknown-model estimate flag) — make T015 pass
-- [ ] T017 [P] Add bundled pricing table `backend/config/pricing/anthropic-2026-09-01.json` (valid against schema)
-- [ ] T018 [P] Unit tests (test-first) for rule-catalog loader + versioning in `backend/tests/unit/core/test_catalog.py`
-- [ ] T019 Implement `backend/src/tokenpulse/core/recommendations/catalog.py` (load YAML, schema-validate, expose spike params + rules + version) — make T018 pass
-- [ ] T020 [P] Add bundled rule catalog `backend/config/rules/catalog-v1.yaml` with FR-019 / FR-020a / FR-029 defaults
-- [ ] T021 [P] Unit tests (test-first) for aggregation rollups in `backend/tests/unit/core/test_aggregation.py` (per member/team/model/window; missing vs zero; PoP null; team == Σ members)
-- [ ] T022 Implement `backend/src/tokenpulse/core/aggregation.py` (daily series, period totals, prev-period delta, `by_model`, invariant) — make T021 pass
-- [ ] T023 Implement config loader `backend/src/tokenpulse/config.py` + `backend/tokenpulse.example.toml` (mode, db path/key, `retention_days`, threshold overrides; env `TOKENPULSE_ADMIN_API_KEY`, `TOKENPULSE_DB_KEY`)
-- [ ] T024 Implement `backend/src/tokenpulse/logging.py` (structlog JSON to stderr, allow-list processor + secret redaction so no content/keys can be logged — FR-036)
-- [ ] T025 Implement `backend/src/tokenpulse/db/session.py` (SQLAlchemy engine/session; plain SQLite for demo; SQLCipher URL when `mode=live` + `TOKENPULSE_DB_KEY`)
-- [ ] T026 [P] Implement SQLAlchemy models in `backend/src/tokenpulse/db/models.py` (Team, Member, AttributionMapEntry, UsageRecord, IngestionRun, SpikeFlag, Recommendation, ReportRun) per data-model.md
-- [ ] T027 Initialize Alembic in `backend/` and create the initial migration for all tables under `backend/src/tokenpulse/db/migrations/`
-- [ ] T028 Add a data migration seeding the reserved Member `__unattributed__` and the two demo Teams in `backend/src/tokenpulse/db/migrations/`
-- [ ] T029 Implement idempotent upsert + normalization skeleton in `backend/src/tokenpulse/ingestion/pipeline.py` (`RawUsageBucket` → `UsageRecord`, unique keys per data-model.md)
-- [ ] T030 Implement FastAPI app skeleton `backend/src/tokenpulse/api/app.py` (router registration, structlog middleware, exception handler → `Error` schema)
-- [ ] T031 Implement `/api/meta` route in `backend/src/tokenpulse/api/routers/meta.py` (returns `Meta` from config + loaders)
-- [ ] T032 Implement Typer CLI skeleton `backend/src/tokenpulse/cli.py` (global options `--config/--db/--json/--log-level`; register subcommands; `serve`)
-- [ ] T033 [P] Frontend app shell in `frontend/src/main.tsx` + `frontend/src/App.tsx` (router, layout, TanStack Query provider)
-- [ ] T034 [P] Frontend typed API client base `frontend/src/api/client.ts` + `frontend/src/api/types.ts` derived from `specs/001-cost-usage-monitor/contracts/rest-api.openapi.yaml`
-- [ ] T035 [P] Frontend `frontend/src/components/DemoBanner.tsx` (reads `/api/meta`, shows synthetic-data banner — FR-004)
-- [ ] T036 [P] Frontend `frontend/src/lib/format.ts` (micro-USD → USD, date, percent helpers)
+- [x] T012 [P] Unit tests (test-first) for micro-USD money type in `backend/tests/unit/core/test_money.py`
+- [x] T013 Implement `backend/src/tokenpulse/core/money.py` (integer micro-USD, `ROUND_HALF_UP` quantize, parse/format, Decimal helpers) — make T012 pass
+- [x] T014 [P] Copy contract schemas into the package: `backend/config/schemas/pricing-table.schema.json` and `backend/config/schemas/rule-catalog.schema.json` (from `specs/001-cost-usage-monitor/contracts/`)
+- [x] T015 [P] Unit tests (test-first) for pricing loader + `cost()` in `backend/tests/unit/core/test_pricing.py` (date selection, unknown model → estimate, normal/boundary/empty)
+- [x] T016 Implement `backend/src/tokenpulse/core/pricing.py` (load dated tables, select by record date, `cost(tokens, model, version)`, unknown-model estimate flag) — make T015 pass
+- [x] T017 [P] Add bundled pricing table `backend/config/pricing/anthropic-2026-09-01.json` (valid against schema)
+- [x] T018 [P] Unit tests (test-first) for rule-catalog loader + versioning in `backend/tests/unit/core/test_catalog.py`
+- [x] T019 Implement `backend/src/tokenpulse/core/recommendations/catalog.py` (load YAML, schema-validate, expose spike params + rules + version) — make T018 pass
+- [x] T020 [P] Add bundled rule catalog `backend/config/rules/catalog-v1.yaml` with FR-019 / FR-020a / FR-029 defaults
+- [x] T021 [P] Unit tests (test-first) for aggregation rollups in `backend/tests/unit/core/test_aggregation.py` (per member/team/model/window; missing vs zero; PoP null; team == Σ members)
+- [x] T022 Implement `backend/src/tokenpulse/core/aggregation.py` (daily series, period totals, prev-period delta, `by_model`, invariant) — make T021 pass
+- [x] T023 Implement config loader `backend/src/tokenpulse/config.py` + `backend/tokenpulse.example.toml` (mode, db path/key, `retention_days`, threshold overrides; env `TOKENPULSE_ADMIN_API_KEY`, `TOKENPULSE_DB_KEY`)
+- [x] T024 Implement `backend/src/tokenpulse/logging.py` (structlog JSON to stderr, allow-list processor + secret redaction so no content/keys can be logged — FR-036)
+- [x] T025 Implement `backend/src/tokenpulse/db/session.py` (SQLAlchemy engine/session; plain SQLite for demo; SQLCipher URL when `mode=live` + `TOKENPULSE_DB_KEY`)
+- [x] T026 [P] Implement SQLAlchemy models in `backend/src/tokenpulse/db/models.py` (Team, Member, AttributionMapEntry, UsageRecord, IngestionRun, SpikeFlag, Recommendation, ReportRun) per data-model.md
+- [x] T027 Initialize Alembic in `backend/` and create the initial migration for all tables under `backend/src/tokenpulse/db/migrations/`
+- [x] T028 Add a data migration seeding the reserved Member `__unattributed__` and the two demo Teams in `backend/src/tokenpulse/db/migrations/`
+- [x] T029 Implement idempotent upsert + normalization skeleton in `backend/src/tokenpulse/ingestion/pipeline.py` (`RawUsageBucket` → `UsageRecord`, unique keys per data-model.md)
+- [x] T030 Implement FastAPI app skeleton `backend/src/tokenpulse/api/app.py` (router registration, structlog middleware, exception handler → `Error` schema)
+- [x] T031 Implement `/api/meta` route in `backend/src/tokenpulse/api/routers/meta.py` (returns `Meta` from config + loaders)
+- [x] T032 Implement Typer CLI skeleton `backend/src/tokenpulse/cli.py` (global options `--config/--db/--json/--log-level`; register subcommands; `serve`)
+- [x] T033 [P] Frontend app shell in `frontend/src/main.tsx` + `frontend/src/App.tsx` (router, layout, TanStack Query provider)
+- [x] T034 [P] Frontend typed API client base `frontend/src/api/client.ts` + `frontend/src/api/types.ts` derived from `specs/001-cost-usage-monitor/contracts/rest-api.openapi.yaml`
+- [x] T035 [P] Frontend `frontend/src/components/DemoBanner.tsx` (reads `/api/meta`, shows synthetic-data banner — FR-004)
+- [x] T036 [P] Frontend `frontend/src/lib/format.ts` (micro-USD → USD, date, percent helpers)
 
 **Checkpoint**: Money path primitives + DB + API/CLI/frontend shells ready — user stories can begin
 
@@ -92,18 +92,18 @@ Web app per plan.md: `backend/src/tokenpulse/`, `backend/tests/`, `backend/confi
 
 ### Tests for User Story 1
 
-- [ ] T037 [P] [US1] Unit test (test-first) for the demo generator in `backend/tests/unit/ingestion/test_demo_generator.py` (same seed → identical dataset; contains 2–3 spikes, a team model-mix shift, a low-cache pattern, a steady-high-volume pattern)
-- [ ] T038 [P] [US1] Integration test in `backend/tests/integration/test_seed.py` (6 members / 2 teams, 90 days, row counts; idempotent re-run creates no duplicates)
-- [ ] T039 [P] [US1] Contract test for `/api/meta` in `backend/tests/contract/test_meta.py` (`is_demo_data` true, versions + `spike_multiple` present after seed)
+- [x] T037 [P] [US1] Unit test (test-first) for the demo generator in `backend/tests/unit/ingestion/test_demo_generator.py` (same seed → identical dataset; contains 2–3 spikes, a team model-mix shift, a low-cache pattern, a steady-high-volume pattern)
+- [x] T038 [P] [US1] Integration test in `backend/tests/integration/test_seed.py` (6 members / 2 teams, 90 days, row counts; idempotent re-run creates no duplicates)
+- [x] T039 [P] [US1] Contract test for `/api/meta` in `backend/tests/contract/test_meta.py` (`is_demo_data` true, versions + `spike_multiple` present after seed)
 
 ### Implementation for User Story 1
 
-- [ ] T040 [US1] Implement `backend/src/tokenpulse/ingestion/demo_generator.py` (seeded RNG, lognormal daily variance, weekend dampening, model mix, injected spikes + patterns per research.md §9)
-- [ ] T041 [US1] Wire the demo path in `backend/src/tokenpulse/ingestion/pipeline.py` (cost via `core.pricing`, `source="demo"`, `cost_is_estimate`)
-- [ ] T042 [US1] Implement the `seed` command in `backend/src/tokenpulse/cli.py` (`--seed 20260907`, `--days 90`, `--members 6`, `--reset`)
-- [ ] T043 [US1] Finalize `/api/meta` fields in `backend/src/tokenpulse/api/routers/meta.py` (pricing versions list, `rule_catalog_version`, `spike_multiple`, `retention_days`)
-- [ ] T044 [P] [US1] Frontend: `frontend/src/api/useMeta.ts` hook + mount `DemoBanner` in the layout
-- [ ] T045 [US1] Update `scripts/demo.sh` and `scripts/demo.ps1` to run `uv sync` → `tokenpulse seed` → `tokenpulse report` → start the API
+- [x] T040 [US1] Implement `backend/src/tokenpulse/ingestion/demo_generator.py` (seeded RNG, lognormal daily variance, weekend dampening, model mix, injected spikes + patterns per research.md §9)
+- [x] T041 [US1] Wire the demo path in `backend/src/tokenpulse/ingestion/pipeline.py` (cost via `core.pricing`, `source="demo"`, `cost_is_estimate`)
+- [x] T042 [US1] Implement the `seed` command in `backend/src/tokenpulse/cli.py` (`--seed 20260907`, `--days 90`, `--members 6`, `--reset`)
+- [x] T043 [US1] Finalize `/api/meta` fields in `backend/src/tokenpulse/api/routers/meta.py` (pricing versions list, `rule_catalog_version`, `spike_multiple`, `retention_days`)
+- [x] T044 [P] [US1] Frontend: `frontend/src/api/useMeta.ts` hook + mount `DemoBanner` in the layout
+- [x] T045 [US1] Update `scripts/demo.sh` and `scripts/demo.ps1` to run `uv sync` → `tokenpulse seed` → `tokenpulse report` → start the API
 
 **Checkpoint**: `tokenpulse seed` populates the DB; `/api/meta` and the demo banner work
 
@@ -117,25 +117,25 @@ Web app per plan.md: `backend/src/tokenpulse/`, `backend/tests/`, `backend/confi
 
 ### Tests for User Story 2
 
-- [ ] T046 [P] [US2] Contract test `/api/teams` in `backend/tests/contract/test_teams.py`
-- [ ] T047 [P] [US2] Contract test `/api/trends` in `backend/tests/contract/test_trends.py` (series shape, `is_spike`, `missing` flags, `empty_reason`)
-- [ ] T048 [P] [US2] Contract test `/api/totals` in `backend/tests/contract/test_totals.py` (team == Σ members; PoP null with no prior period)
-- [ ] T049 [P] [US2] Integration test in `backend/tests/integration/test_trends_totals.py` (seed → invariant + PoP over the demo range)
-- [ ] T050 [P] [US2] Frontend component tests in `frontend/tests/TrendChart.test.tsx` (renders lines; date-range change refetches; empty + loading states)
+- [x] T046 [P] [US2] Contract test `/api/teams` in `backend/tests/contract/test_teams.py`
+- [x] T047 [P] [US2] Contract test `/api/trends` in `backend/tests/contract/test_trends.py` (series shape, `is_spike`, `missing` flags, `empty_reason`)
+- [x] T048 [P] [US2] Contract test `/api/totals` in `backend/tests/contract/test_totals.py` (team == Σ members; PoP null with no prior period)
+- [x] T049 [P] [US2] Integration test in `backend/tests/integration/test_trends_totals.py` (seed → invariant + PoP over the demo range)
+- [x] T050 [P] [US2] Frontend component tests in `frontend/tests/TrendChart.test.tsx` (renders lines; date-range change refetches; empty + loading states)
 
 ### Implementation for User Story 2
 
-- [ ] T051 [P] [US2] Implement `/api/teams` router `backend/src/tokenpulse/api/routers/teams.py`
-- [ ] T052 [US2] Implement `/api/trends` + `/api/totals` in `backend/src/tokenpulse/api/routers/trends.py` (uses `core.aggregation`; `is_spike` from latest `ReportRun` flags if present, else false)
-- [ ] T053 [P] [US2] Frontend hooks `frontend/src/api/useTrends.ts`, `useTotals.ts`, `useTeams.ts`
-- [ ] T054 [P] [US2] Frontend `frontend/src/components/TrendChart.tsx` (Recharts line, spike-dot markers, missing-day gaps)
-- [ ] T055 [P] [US2] Frontend `frontend/src/components/TotalsCards.tsx` (totals + PoP delta)
-- [ ] T056 [P] [US2] Frontend `frontend/src/components/DateRangePicker.tsx`
-- [ ] T057 [US2] Frontend `frontend/src/pages/Overview.tsx` (team trends + totals + range control)
-- [ ] T058 [US2] Frontend `frontend/src/pages/MemberDetail.tsx` (per-member trends, `by_model` toggle)
-- [ ] T059 [US2] Frontend routing + nav for Overview / MemberDetail in `frontend/src/App.tsx`
-- [ ] T060 [US2] Update `scripts/demo.sh` / `scripts/demo.ps1` to also start the frontend dev server and open the browser
-- [ ] T061 [P] [US2] Frontend empty/loading skeleton states for trend views in `frontend/src/components/Skeletons.tsx`
+- [x] T051 [P] [US2] Implement `/api/teams` router `backend/src/tokenpulse/api/routers/teams.py`
+- [x] T052 [US2] Implement `/api/trends` + `/api/totals` in `backend/src/tokenpulse/api/routers/trends.py` (uses `core.aggregation`; `is_spike` from latest `ReportRun` flags if present, else false)
+- [x] T053 [P] [US2] Frontend hooks `frontend/src/api/useTrends.ts`, `useTotals.ts`, `useTeams.ts`
+- [x] T054 [P] [US2] Frontend `frontend/src/components/TrendChart.tsx` (Recharts line, spike-dot markers, missing-day gaps)
+- [x] T055 [P] [US2] Frontend `frontend/src/components/TotalsCards.tsx` (totals + PoP delta)
+- [x] T056 [P] [US2] Frontend `frontend/src/components/DateRangePicker.tsx`
+- [x] T057 [US2] Frontend `frontend/src/pages/Overview.tsx` (team trends + totals + range control)
+- [x] T058 [US2] Frontend `frontend/src/pages/MemberDetail.tsx` (per-member trends, `by_model` toggle)
+- [x] T059 [US2] Frontend routing + nav for Overview / MemberDetail in `frontend/src/App.tsx`
+- [x] T060 [US2] Update `scripts/demo.sh` / `scripts/demo.ps1` to also start the frontend dev server and open the browser
+- [x] T061 [P] [US2] Frontend empty/loading skeleton states for trend views in `frontend/src/components/Skeletons.tsx`
 
 **Checkpoint**: End-to-end demo dashboard runs on synthetic data (satisfies SC-001, SC-002) — this is the meaningful MVP
 
